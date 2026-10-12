@@ -25,9 +25,10 @@ only temporary and a red warning shows under the History table.
 3. Redeploy (Deployments > ... > Redeploy).
 4. The red warning disappears and every submit is stored permanently.
 
-## Changing the WhatsApp link
-Edit `WHATSAPP_GROUP_LINK` in `public/index.html` and redeploy.
+## How the WhatsApp step works
+After Submit, WhatsApp opens with the message already typed in. Pick the group
+(it is usually at the top of recent chats) and tap Send.
 
-## Note
-WhatsApp does not allow a website to post into a group automatically. After
-Submit the message is copied, the group opens, and you paste and send.
+A group invite link (chat.whatsapp.com) can only open the join screen. It cannot
+carry text, so it is not used. WhatsApp does not let a website choose a specific
+group and post into it automatically.
