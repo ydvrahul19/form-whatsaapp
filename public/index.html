@@ -55,7 +55,7 @@
       <label for="notes">Notes (optional)</label>
       <textarea id="notes" rows="3" placeholder="Anything to add..."></textarea>
 
-      <button type="submit" id="submitBtn">Submit &amp; send on WhatsApp</button>
+      <button type="submit" id="submitBtn">Submit &amp; open WhatsApp group</button>
       <div id="status"></div>
     </form>
   </div>
@@ -185,13 +185,17 @@
 
       form.reset();
 
-      // 4) Open WhatsApp with the message already typed in.
-      //    (Group invite links cannot carry text, so we use the share link.)
-      setStatus('✅ Saved! Opening WhatsApp. Choose the group and tap send.', 'ok');
-      setTimeout(() => {
-        window.location.href = 'https://wa.me/?text=' + encodeURIComponent(message);
+      // 4) Open the WhatsApp group
+      if (WHATSAPP_GROUP_LINK.indexOf('chat.whatsapp.com') === -1) {
+        setStatus('✅ Saved! (WhatsApp link not set yet — edit WHATSAPP_GROUP_LINK in index.html)', 'ok');
         submitBtn.disabled = false;
-      }, 1000);
+        return;
+      }
+      setStatus('✅ Saved! Message copied. Opening WhatsApp group — just paste and send.', 'ok');
+      setTimeout(() => {
+        window.location.href = WHATSAPP_GROUP_LINK;
+        submitBtn.disabled = false;
+      }, 1500);
     } catch (err) {
       setStatus('❌ ' + err.message, 'err');
       submitBtn.disabled = false;
