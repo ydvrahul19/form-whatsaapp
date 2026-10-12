@@ -1,30 +1,33 @@
-# Sample Form + History + WhatsApp Group
+# Form + History + WhatsApp group (Vercel version)
 
-## What it does
-1. You fill the form (name, customers, visitors, notes).
-2. On Submit it saves the entry to `database.json` (your history).
-3. It copies a ready-made message to the clipboard.
-4. It opens your WhatsApp group. You paste the message and press send.
+Folder layout:
 
-(WhatsApp does not allow a website to post into a group automatically, so the paste step is needed.)
+    public/index.html   the page (your WhatsApp link is already set inside)
+    api/submit.js       saves an entry
+    api/history.js      returns saved history
+    api/_db.js          database helper (Upstash Redis)
+    package.json
 
-## Run it
-1. Install Node.js (https://nodejs.org), any version 16 or newer.
-2. Unzip this folder.
-3. Your WhatsApp group link is already set in `index.html` (search for `WHATSAPP_GROUP_LINK` to change it).
-4. In a terminal inside the folder, run:
+## Step 1: Deploy
+Option A (easiest): push this folder to a GitHub repo, then in Vercel click
+Add New > Project > import the repo > Deploy. No settings needed.
 
-       node server.js
+Option B: in this folder run `npx vercel` and follow the prompts.
 
-5. Open http://localhost:3000
+## Step 2: Check
+Open your Vercel URL. The form works right away, but until Step 3 history is
+only temporary and a red warning shows under the History table.
 
-## Test on your phone (same Wi-Fi)
-Find your computer's IP address (for example 192.168.1.5) and open
-`http://192.168.1.5:3000` on your phone. The WhatsApp app will open the group.
+## Step 3: Connect the free database (so history is really saved)
+1. Vercel dashboard > your project > Storage (or Marketplace) > Upstash > Redis > Create (free plan).
+2. Connect it to your project. It adds the environment variables automatically
+   (KV_REST_API_URL and KV_REST_API_TOKEN).
+3. Redeploy (Deployments > ... > Redeploy).
+4. The red warning disappears and every submit is stored permanently.
 
-## Where is the data?
-In `database.json`, created in the same folder after the first submit. Delete the file to clear the history.
+## Changing the WhatsApp link
+Edit `WHATSAPP_GROUP_LINK` in `public/index.html` and redeploy.
 
-## Going live later
-Upload to a host that runs Node (Render, Railway, a VPS). For many users,
-move from the JSON file to SQLite, MySQL or MongoDB.
+## Note
+WhatsApp does not allow a website to post into a group automatically. After
+Submit the message is copied, the group opens, and you paste and send.

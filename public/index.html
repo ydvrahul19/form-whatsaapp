@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Entry Form</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #f3f4f6; margin: 0; padding: 16px; color: #111827;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .card {
+    background: #fff; border-radius: 12px; padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px;
+  }
+  h1 { font-size: 22px; margin: 0 0 16px; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 4px; }
+  input, textarea {
+    width: 100%; padding: 10px 12px; font-size: 16px;
+    border: 1px solid #d1d5db; border-radius: 8px; font-family: inherit;
+  }
+  input:focus, textarea:focus { outline: 2px solid #25d366; border-color: #25d366; }
+  button {
+    margin-top: 18px; width: 100%; padding: 12px; font-size: 16px; font-weight: 600;
+    color: #fff; background: #25d366; border: 0; border-radius: 8px; cursor: pointer;
+  }
+  button:disabled { opacity: .6; cursor: not-allowed; }
+  #status { margin-top: 12px; font-size: 14px; min-height: 20px; }
+  .ok { color: #047857; } .err { color: #b91c1c; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  th { color: #6b7280; font-weight: 600; }
+  .scroll { overflow-x: auto; }
+  .empty { color: #6b7280; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <h1>📋 Daily Entry Form</h1>
+    <form id="entryForm">
+      <label for="name">Name</label>
+      <input id="name" type="text" placeholder="Your name" required>
+
+      <label for="customers">Number of customers</label>
+      <input id="customers" type="number" min="0" placeholder="e.g. 25" required>
+
+      <label for="visitors">Number of visitors</label>
+      <input id="visitors" type="number" min="0" placeholder="e.g. 40" required>
+
+      <label for="notes">Notes (optional)</label>
+      <textarea id="notes" rows="3" placeholder="Anything to add..."></textarea>
+
+      <button type="submit" id="submitBtn">Submit &amp; open WhatsApp group</button>
+      <div id="status"></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>🕘 History</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Date &amp; time</th><th>Name</th><th>Customers</th><th>Visitors</th><th>Notes</th></tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyMsg" class="empty" style="display:none">No entries yet.</div>
+    <div id="dbWarn" class="err" style="display:none;margin-top:10px;font-size:13px">
+      ⚠️ Database not connected yet, so history is only temporary. See README (Step 3).
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ===================================================
+  //  PUT YOUR WHATSAPP GROUP INVITE LINK HERE
+  //  Example: 'https://chat.whatsapp.com/AbCdEfGhIjK1234567890'
+  // ===================================================
+  const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/Ir3EYqdZzTJAEV4CMjWTEF';
+
+  const form = document.getElementById('entryForm');
+  const statusEl = document.getElementById('status');
+  const submitBtn = document.getElementById('submitBtn');
+
+  function setStatus(msg, cls) {
+    statusEl.textContent = msg;
+    statusEl.className = cls || '';
+  }
+
+  // Copy text to clipboard (with fallback for non-HTTPS pages, e.g. testing from your phone)
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    }
+    fallbackCopy(text);
+    return Promise.resolve();
+  }
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  function buildMessage(entry) {
+    const when = new Date(entry.createdAt).toLocaleString();
+    let msg =
+      '📋 *New Entry*\n' +
+      'Name: ' + entry.name + '\n' +
+      'Customers: ' + entry.customers + '\n' +
+      'Visitors: ' + entry.visitors + '\n';
+    if (entry.notes) msg += 'Notes: ' + entry.notes + '\n';
+    msg += 'Time: ' + when;
+    return msg;
+  }
+
+  async function loadHistory() {
+    const body = document.getElementById('historyBody');
+    const empty = document.getElementById('emptyMsg');
+    try {
+      const res = await fetch('/api/history');
+      const rows = await res.json();
+      if (!res.ok) throw new Error(rows.error || 'Failed');
+      document.getElementById('dbWarn').style.display =
+        res.headers.get('X-Persistent') === '0' ? 'block' : 'none';
+      body.innerHTML = '';
+      empty.style.display = rows.length ? 'none' : 'block';
+      rows.forEach((r) => {
+        const tr = document.createElement('tr');
+        [r.id, new Date(r.createdAt).toLocaleString(), r.name, r.customers, r.visitors, r.notes || '-']
+          .forEach((val) => {
+            const td = document.createElement('td');
+            td.textContent = val; // textContent = safe from HTML injection
+            tr.appendChild(td);
+          });
+        body.appendChild(tr);
+      });
+    } catch (e) {
+      empty.style.display = 'block';
+      empty.textContent = 'Could not load history.';
+    }
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      name: document.getElementById('name').value.trim(),
+      customers: document.getElementById('customers').value,
+      visitors: document.getElementById('visitors').value,
+      notes: document.getElementById('notes').value.trim(),
+    };
+
+    submitBtn.disabled = true;
+    setStatus('Saving...');
+
+    try {
+      // 1) Save to database
+      const res = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+
+      // 2) Refresh history
+      await loadHistory();
+
+      // 3) Copy a ready-made message so you can paste it in the group
+      const message = buildMessage(data.entry);
+      await copyText(message);
+
+      form.reset();
+
+      // 4) Open the WhatsApp group
+      if (WHATSAPP_GROUP_LINK.indexOf('chat.whatsapp.com') === -1) {
+        setStatus('✅ Saved! (WhatsApp link not set yet — edit WHATSAPP_GROUP_LINK in index.html)', 'ok');
+        submitBtn.disabled = false;
+        return;
+      }
+      setStatus('✅ Saved! Message copied. Opening WhatsApp group — just paste and send.', 'ok');
+      setTimeout(() => {
+        window.location.href = WHATSAPP_GROUP_LINK;
+        submitBtn.disabled = false;
+      }, 1500);
+    } catch (err) {
+      setStatus('❌ ' + err.message, 'err');
+      submitBtn.disabled = false;
+    }
+  });
+
+  loadHistory();
+</script>
+</body>
+</html>
